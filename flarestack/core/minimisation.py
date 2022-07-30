@@ -1573,16 +1573,11 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
         ndim = len(self.p0)
         nwalkers = 25 # TODO: Add to mh_dict
 
-        # np.random.seed(42)
-        # p0 = np.random.rand(nwalkers, ndim) # (n x m) matrix
-        # p0 *= np.diff(self.bounds).reshape(-1, len(self.bounds))
-        # p0 += np.array(self.bounds)[:, 0]
-
         lowers = np.array(self.bounds)[:, 0]
         uppers = np.array(self.bounds)[:, 1]
 
-        mu = [0.8879, 0.6049, 0.475, 0.5136, 1.3415, 2.5521]
-        std = [1.3461, 1.1324, 0.8447, 0.9072, 1.9671, 0.9663]
+        mu = [2.7588, 2.5005, 2.3961]
+        std = [3.0643, 2.9084, 1.053]
 
         # Truncated standard normal distribution (range [self.bounds])
         p0 = np.zeros((nwalkers, ndim))
@@ -1611,34 +1606,38 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
             if l_prior == -np.inf:
                 return l_prior
             return -l_prior + log_llh(params)
-        
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
-        
-        n_initial_steps = 200
-        
-        n_maximum_steps = 10000
-        
-        n_minimum_steps = 6000
 
-        state = sampler.run_mcmc(p0, n_initial_steps)
-                
-        sampler.reset()
+        def run_emcee_convergence(max_iter=100000, batchsize=1000, ntau=50.0, tautol=0.05, verbose=False):
+            begin = p0
 
-        sampler.run_mcmc(state, n_minimum_steps)
-        
-#         act = np.max(sampler.get_autocorr_time(quiet=True))
-        
-#         # Sampler will always run in the range [1000, 100000] steps
-#         # cutoff refers to end of burn-in time step number
-#         if act > 0.5 * n_initial_steps:
-#             # Sampler will run for 12 times ACT steps or 10,000 steps (smallest)
-#             cutoff = np.min((12 * act, n_maximum_steps))
-           
-#         else:
-#             # If ACT is very small, run for 1000 steps
-#             cutoff = n_minimum_steps
+            sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
 
-        chain = sampler.get_chain()
+            old_tau = np.inf
+            niter = 0
+            converged = 0
+            while ~converged:
+                sampler.run_mcmc(begin, nsteps=batchsize, progress=verbose)
+                tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
+                converged = np.all(ntau * tau < niter)
+                converged &= np.all(np.abs(old_tau - tau) / tau < tautol)
+                old_tau = tau
+                begin = None
+                niter += 1000
+                if verbose:
+                    print("Niterations/Max Iterations: ", niter, "/", max_iter)
+                    print("Integrated ACT/Min Convergence Iterations: ", tau, "/", np.amax(ntau * tau))
+                if niter >= max_iter:
+                    break
+
+            # Remove burn-in and and save the samples
+            tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
+            burnin = int(2 * np.max(tau))
+            samples = sampler.get_chain(discard=burnin)
+            lnlike = sampler.get_log_prob(discard=burnin)
+
+            return samples
+
+        chain = run_emcee_convergence(verbose=True)
 
         fit_param = np.median(chain, axis=0).mean(axis=0)
 

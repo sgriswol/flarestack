@@ -1616,7 +1616,8 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
             niter = 0
             converged = 0
             while ~converged:
-                sampler.run_mcmc(begin, nsteps=batchsize, progress=verbose)
+                # If you want MCMC progress, add `progress=verbose` to run_mcmc()
+                sampler.run_mcmc(begin, nsteps=batchsize)
                 tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
                 converged = np.all(ntau * tau < niter)
                 converged &= np.all(np.abs(old_tau - tau) / tau < tautol)
@@ -1637,7 +1638,7 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
 
             return samples
 
-        chain = run_emcee_convergence(verbose=True)
+        chain = run_emcee_convergence(verbose=False)
 
         fit_param = np.median(chain, axis=0).mean(axis=0)
 

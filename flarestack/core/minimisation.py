@@ -1576,8 +1576,8 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
         lowers = np.array(self.bounds)[:, 0]
         uppers = np.array(self.bounds)[:, 1]
 
-        mu = [2.7588, 2.5005, 2.3961]
-        std = [3.0643, 2.9084, 1.053]
+        mu = [2.4996, 2.4726, 2.4441]
+        std = [3.0454, 3.1131, 1.0137]
 
         # Truncated standard normal distribution (range [self.bounds])
         p0 = np.zeros((nwalkers, ndim))
@@ -1616,7 +1616,7 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
             niter = 0
             converged = 0
             while ~converged:
-                # If you want MCMC progress, add `progress=verbose` to run_mcmc()
+                # Add `progress=verbose` to run_mcmc() for MCMC progress
                 sampler.run_mcmc(begin, nsteps=batchsize)
                 tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
                 converged = np.all(ntau * tau < niter)

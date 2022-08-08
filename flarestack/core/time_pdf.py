@@ -687,7 +687,8 @@ class DecayPDF(TimePDF):
 
         self.decay_time = self.t_dict["decay_time"]
         self.decay_length = (
-            self.t_dict["decay_length"] if "decay_time" in self.t_dict else np.inf
+            np.inf if "decay_time" not in self.t_dict else self.t_dict["decay_length"]
+            # self.t_dict["decay_length"] if "decay_time" in self.t_dict else np.inf
         )
         if not "decay_time" in self.t_dict:
             logger.warning("No decay length given! Assuming endless decay")

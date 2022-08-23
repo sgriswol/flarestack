@@ -734,6 +734,24 @@ class FixedWeightMinimisationHandler(MinimisationHandler):
                 scale, self.get_angular_error_modifier(name)
             )
 
+            write_dir = os.path.join(self.pickle_output_dir)
+
+            try:
+                os.makedirs(write_dir)
+            except OSError:
+                pass
+
+            data_pickle_path = os.path.join(write_dir, f'{name}.pkl')
+
+            if os.path.isfile(data_pickle_path):
+                pass
+
+            else:
+                logger.debug(f"Saving dataset to {data_pickle_path}.")
+                with open(data_pickle_path, 'wb') as f:
+                    Pickle.dump(full_dataset[name], f)
+
+
         return full_dataset
 
     def trial_function(self, full_dataset):
@@ -1576,8 +1594,10 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
         lowers = np.array(self.bounds)[:, 0]
         uppers = np.array(self.bounds)[:, 1]
 
-        mu = [2.4996, 2.4726, 2.4441]
-        std = [3.0454, 3.1131, 1.0137]
+        # mu = [3.9916, 1.9304, 1.4439, 1.3141, 3.9473, 2.5365]
+        # std = [3.809, 2.3238, 1.8399, 1.9171, 5.3806, 1.2124]
+        mu = [2.8206, 2.5696, 2.4623]
+        std = [2.9015, 2.9774, 1.0387]
 
         # Truncated standard normal distribution (range [self.bounds])
         p0 = np.zeros((nwalkers, ndim))

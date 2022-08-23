@@ -293,6 +293,13 @@ class ResultsHandler(object):
         if 'chains.pkl' in all_sub_dirs:
             all_sub_dirs.remove('chains.pkl')
 
+        seasons = ['IC79-2010', 'IC86-2011', 'IC86-2012']
+
+        for season in seasons:
+            season_pickle = season + '.pkl'
+            if season_pickle in all_sub_dirs:
+                all_sub_dirs.remove(season_pickle)
+
         try:
             os.makedirs(self.merged_dir)
         except OSError:

@@ -11,6 +11,7 @@ from flarestack.core.spatial_pdf import SpatialPDF
 from flarestack.utils.catalogue_loader import calculate_source_weight
 from scipy import sparse, interpolate
 from flarestack.shared import k_to_flux
+import pickle
 
 logger = logging.getLogger(__name__)
 
@@ -158,10 +159,21 @@ class BaseInjector:
         :param angular_error_modifier: AngularErrorModifier to change angular errors
         :return: Simulated dataset
         """
+        outpath = os.path.join(os.environ['FLARESTACK_SCRATCH_DIR'], 'debug_realizations/1SourceCE')
         bkg_events = self.season.simulate_background()
+
+        bkg_file = os.path.join(outpath, f"{self.season.season_name}_bkg.pickle")
+        if not os.path.isfile(bkg_file):
+            with open(bkg_file, 'wb') as f:
+                pickle.dump(bkg_events, f)
 
         if scale > 0.0:
             sig_events = self.inject_signal(scale)
+            sig_file = os.path.join(outpath, f"{self.season.season_name}_scale{scale}_sig.pickle")
+            if not os.path.isfile(sig_file):
+                with open(sig_file, 'wb') as f:
+                    pickle.dump(sig_events, f)
+                logger.info(f"Wrote file {sig_file}")
         else:
             sig_events = []
 
@@ -171,7 +183,6 @@ class BaseInjector:
             simulated_data = bkg_events
 
         if angular_error_modifier is not None:
-
             simulated_data = angular_error_modifier.pull_correct_static(simulated_data)
 
         return simulated_data
@@ -567,7 +578,10 @@ class EffectiveAreaInjector(BaseInjector):
             else:
                 n_inj = self.get_expectation(source, scale)
 
-            n_tot_exp += n_inj
+            if np.isnan(n_inj) or n_inj < 0:
+                n_inj = 0.
+            else:
+                n_tot_exp += n_inj
 
             # Simulates poisson noise around the expectation value n_inj.
             if self.poisson_smear:

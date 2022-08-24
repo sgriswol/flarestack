@@ -159,7 +159,7 @@ class BaseInjector:
         :param angular_error_modifier: AngularErrorModifier to change angular errors
         :return: Simulated dataset
         """
-        outpath = os.path.join(os.environ['FLARESTACK_SCRATCH_DIR'], 'debug_realizations/1SourceCE')
+        outpath = os.path.join(os.environ['FLARESTACK_SCRATCH_DIR'], 'debug_realizations/1SourceNorthernPSTracks')
         bkg_events = self.season.simulate_background()
 
         bkg_file = os.path.join(outpath, f"{self.season.season_name}_bkg.pickle")

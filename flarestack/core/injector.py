@@ -150,7 +150,7 @@ class BaseInjector:
         )
         self.n_exp = self.calculate_n_exp()
 
-    def create_dataset(self, scale, angular_error_modifier=None):
+    def create_dataset(self, scale, name, angular_error_modifier=None):
         """Create a dataset based on scrambled data for background, and Monte
         Carlo simulation for signal. Returns the composite dataset. The source
         flux can be scaled by the scale parameter.
@@ -159,13 +159,21 @@ class BaseInjector:
         :param angular_error_modifier: AngularErrorModifier to change angular errors
         :return: Simulated dataset
         """
-        outpath = os.path.join(os.environ['FLARESTACK_SCRATCH_DIR'], 'debug_realizations/1SourceNorthernPSTracks')
+        name = name.split('analyses/')[1]
+        outpath = os.path.join(os.environ['FLARESTACK_SCRATCH_DIR'], f'debug_realizations/{name}')
+
+        try:
+            os.makedirs(outpath)
+        except OSError:
+            pass
+
         bkg_events = self.season.simulate_background()
 
         bkg_file = os.path.join(outpath, f"{self.season.season_name}_bkg.pickle")
         if not os.path.isfile(bkg_file):
             with open(bkg_file, 'wb') as f:
                 pickle.dump(bkg_events, f)
+            logger.info(f"Wrote file {bkg_file}")
 
         if scale > 0.0:
             sig_events = self.inject_signal(scale)

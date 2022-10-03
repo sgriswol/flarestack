@@ -595,12 +595,6 @@ class FixedWeightMinimisationHandler(MinimisationHandler):
                 with open(file_name, "wb") as f:
                     Pickle.dump(res_dict['chain'], f)
 
-#         if 'chain' in res_dict.keys():
-#             with open(os.path.join(os.environ['FLARESTACK_SCRATCH_DIR'],
-#                                    'flarestack__data/storage/pickles/', 
-#                                    self.mh_dict['name'], 'chains.pkl'), 'wb') as p:
-#                 Pickle.dump(res_dict['chain'], p)
-
         self.dump_results(results, scale, seed)
         return res_dict
 
@@ -731,7 +725,7 @@ class FixedWeightMinimisationHandler(MinimisationHandler):
 
         for name in self.seasons.keys():
             full_dataset[name] = self.get_injector(name).create_dataset(
-                scale, self.get_angular_error_modifier(name)
+                scale, self.name, self.get_angular_error_modifier(name)
             )
 
             write_dir = os.path.join(self.pickle_output_dir)
@@ -1589,15 +1583,16 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
             return np.sum(raw_f(params))
 
         ndim = len(self.p0)
-        nwalkers = 25 # TODO: Add to mh_dict
+        nwalkers = self.mh_dict['nwalkers']
 
         lowers = np.array(self.bounds)[:, 0]
         uppers = np.array(self.bounds)[:, 1]
 
-        # mu = [3.9916, 1.9304, 1.4439, 1.3141, 3.9473, 2.5365]
-        # std = [3.809, 2.3238, 1.8399, 1.9171, 5.3806, 1.2124]
-        mu = [2.8206, 2.5696, 2.4623]
-        std = [2.9015, 2.9774, 1.0387]
+        # mu = [1.485, 2.5779]
+        # std = [1.89, 0.7517]
+
+        mu = self.mh_dict['mu']
+        std = self.mh_dict['std']
 
         # Truncated standard normal distribution (range [self.bounds])
         p0 = np.zeros((nwalkers, ndim))
@@ -1620,7 +1615,6 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
                     l_prior += -np.log(bounds[1] - bounds[0])
             return l_prior
 
-
         def log_prob(params):
             l_prior = log_prior(params)
             if l_prior == -np.inf:
@@ -1628,21 +1622,30 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
             return -l_prior + log_llh(params)
 
         def run_emcee_convergence(max_iter=100000, batchsize=1000, ntau=50.0, tautol=0.05, verbose=False):
+
             begin = p0
 
             sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
+
+            tau_list = []
+            niter_list = []
+            converged_list = []
 
             old_tau = np.inf
             niter = 0
             converged = 0
             while ~converged:
-                # Add `progress=verbose` to run_mcmc() for MCMC progress
-                sampler.run_mcmc(begin, nsteps=batchsize)
+                sampler.run_mcmc(begin, nsteps=batchsize, progress=verbose)
                 tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
                 converged = np.all(ntau * tau < niter)
                 converged &= np.all(np.abs(old_tau - tau) / tau < tautol)
                 old_tau = tau
                 begin = None
+
+                tau_list.append(tau)
+                niter_list.append(niter)
+                converged_list.append(converged)
+
                 niter += 1000
                 if verbose:
                     print("Niterations/Max Iterations: ", niter, "/", max_iter)
@@ -1651,12 +1654,24 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
                     break
 
             # Remove burn-in and and save the samples
-            tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
-            burnin = int(2 * np.max(tau))
-            samples = sampler.get_chain(discard=burnin)
-            lnlike = sampler.get_log_prob(discard=burnin)
+            try:
+                tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
+                burnin = int(2 * np.max(tau))
+                samples = sampler.get_chain(discard=burnin)
+                lnlike = sampler.get_log_prob(discard=burnin)
+                return samples
 
-            return samples
+            except ValueError:
+                logger.debug("Error encountered in final autocorrelation time calculation. See failed_mcmc_info.pkl.")
+                write_dir = os.path.join(self.pickle_output_dir)
+                try:
+                    os.makedirs(write_dir)
+                except OSError:
+                    pass
+                file_name = os.path.join(write_dir, "failed_mcmc_info.pkl")
+                logger.debug("Saving to {0}".format(file_name))
+                with open(file_name, "wb") as f:
+                    Pickle.dump(res_dict['chain'], f)
 
         chain = run_emcee_convergence(verbose=False)
 
@@ -1672,7 +1687,7 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
             "chain": chain,
             "Parameters": parameters,
             "TS": ts,
-            "Flag": True,  # TODO: figure out how to evaluate this
+            "Flag": True,
             "f": log_llh
         }
 
@@ -1693,7 +1708,7 @@ class FitWeightHMCMinimisationHandler(FitWeightMinimisationHandler):
 
         ndim = len(self.p0)
         np.random.seed(42)
-        nwalkers = 10 # TODO: Add to mh_dict
+        nwalkers = self.mh_dict['nwalkers']
         p0 = np.random.rand(nwalkers, ndim) # (n x m) matrix
 
         p0 *= np.diff(self.bounds).reshape(-1, len(self.bounds))
@@ -1826,7 +1841,7 @@ class FitWeightHMCMinimisationHandler(FitWeightMinimisationHandler):
             # "chain": chain,
             "Parameters": parameters,
             "TS": ts,
-            "Flag": True,  # TODO: figure out how to evaluate this
+            "Flag": True,
             "f": log_llh
         }
 

@@ -293,7 +293,14 @@ class ResultsHandler(object):
         if 'chains.pkl' in all_sub_dirs:
             all_sub_dirs.remove('chains.pkl')
 
-        seasons = ['IC79-2010', 'IC86-2011', 'IC86-2012']
+        # # nt_v002_p05
+        # seasons = ['IC59', 'IC79', 'IC86_2011', 'IC86_2012_16']
+
+        # seasons = ['IC79-2010', 'IC86-2011', 'IC86-2012']
+
+        # nt_v005_p00
+        seasons = ['IC86_2011', 'IC86_2012', 'IC86_2013', 'IC86_2014', 'IC86_2015',
+                   'IC86_2016', 'IC86_2017', 'IC86_2018', 'IC86_2019']
 
         for season in seasons:
             season_pickle = season + '.pkl'
@@ -307,6 +314,7 @@ class ResultsHandler(object):
 
         for sub_dir_name in all_sub_dirs:
             sub_dir = os.path.join(self.pickle_output_dir, sub_dir_name)
+            print(sub_dir)
 
             files = os.listdir(sub_dir)
 

@@ -580,7 +580,7 @@ class FixedWeightMinimisationHandler(MinimisationHandler):
 
             else:
                 
-                write_dir = os.path.join(self.pickle_output_dir)
+                write_dir = os.path.join(self.pickle_output_dir, 'chains')
 
                 # Tries to create the parent directory, unless it already exists
                 try:
@@ -588,7 +588,7 @@ class FixedWeightMinimisationHandler(MinimisationHandler):
                 except OSError:
                     pass
 
-                file_name = os.path.join(write_dir, "chains.pkl")
+                file_name = os.path.join(write_dir, f"chains_{scale_shortener(scale)}.pkl")
 
                 logger.debug("Saving to {0}".format(file_name))
 
@@ -1690,6 +1690,8 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
             "Flag": True,
             "f": log_llh
         }
+
+        # TODO: write chains directly to file here
 
         return res_dict
     

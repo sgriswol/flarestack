@@ -290,17 +290,10 @@ class ResultsHandler(object):
             if x[0] != "." and x != "merged"
         ]
         
-        if 'chains.pkl' in all_sub_dirs:
-            all_sub_dirs.remove('chains.pkl')
+        if 'chains' in all_sub_dirs:
+            all_sub_dirs.remove('chains')
 
-        # # nt_v002_p05
-        # seasons = ['IC59', 'IC79', 'IC86_2011', 'IC86_2012_16']
-
-        # seasons = ['IC79-2010', 'IC86-2011', 'IC86-2012']
-
-        # nt_v005_p00
-        seasons = ['IC86_2011', 'IC86_2012', 'IC86_2013', 'IC86_2014', 'IC86_2015',
-                   'IC86_2016', 'IC86_2017', 'IC86_2018', 'IC86_2019']
+        seasons = [x for x in self._dataset.seasons]
 
         for season in seasons:
             season_pickle = season + '.pkl'

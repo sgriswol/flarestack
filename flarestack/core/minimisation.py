@@ -26,6 +26,7 @@ from flarestack.core.angular_error_modifier import BaseAngularErrorModifier
 from flarestack.utils.catalogue_loader import load_catalogue, calculate_source_weight
 from flarestack.utils.asimov_estimator import estimate_discovery_potential
 import emcee
+import corner
 import scipy.stats as stats
 import numdifftools as nd
 
@@ -544,6 +545,88 @@ class FixedWeightMinimisationHandler(MinimisationHandler):
 
         return res_dict
 
+    def get_labels(self):
+        """Get labels for corner and walker plot.
+        """
+        labels = []
+
+        for source in self.sources:
+            label_name = source['source_name'].decode()
+            labels.append(fr'$n_s$: {label_name}')
+        labels.append('gamma')
+
+        return labels
+
+    def corner_plot(self, chain, scale):
+        """Create corner plot and save to plot output directory.
+        """
+        corner_labels = self.get_labels()
+
+        scales = flux_to_k(reference_sensitivity(np.sin(self.sources['dec_rad'])))
+
+        truths = np.append(np.array(scales), self.mh_dict['inj_dict']['injection_energy_pdf']['gamma'])
+
+        corner_kwargs = dict(
+            bins=30,
+            labels=corner_labels,
+            quantiles=[0.16, 0.5, 0.84],
+            truths=truths,
+            use_math_text=True,
+            show_titles=True,
+            title_kwargs={"fontsize": 10},
+            truth_color='#4682b4',
+            plot_datapoints=False,
+            fill_contours=True,
+        )
+
+        ndim = len(self.sources) + 1
+
+        reshaped_chain = chain.reshape((-1, ndim))
+
+        fig = corner.corner(reshaped_chain,
+                            **corner_kwargs)
+
+        plot_dir = os.path.join(plot_output_dir(self.name))
+
+        try:
+            os.makedirs(plot_dir)
+        except OSError:
+            pass
+
+        corner_path = os.path.join(plot_dir, f'corner_{scale}.png')
+
+        plt.savefig(corner_path, dpi=300)
+
+        logger.info(f"Saving corner plot to {corner_path}")
+
+    def walker_plot(self, chain, scale):
+
+        ndim = len(self.sources) + 1
+        fig, axes = plt.subplots(ndim, figsize=(15, 8), sharex=True)
+        walker_labels = self.get_labels()
+        for i in range(ndim):
+            ax = axes[i]
+            ax.plot(chain[:, :, i], "k", alpha=0.1)
+            ax.set_xlim(0, len(chain))
+            ax.set_ylabel(walker_labels[i], rotation=0, ha='right')
+            ax.yaxis.set_label_coords(-0.05, 0.5)
+
+        axes[-1].set_xlabel("Step Number")
+        fig.tight_layout()
+
+        plot_dir = os.path.join(plot_output_dir(self.name))
+
+        try:
+            os.makedirs(plot_dir)
+        except OSError:
+            pass
+
+        walker_path = os.path.join(plot_dir, f'walkers_{scale}.png')
+
+        plt.savefig(walker_path, dpi=300)
+
+        logger.info(f"Saving corner plot to {walker_path}")
+
     def run_single(self, full_dataset, scale, seed):
 
         param_vals = {}
@@ -590,10 +673,15 @@ class FixedWeightMinimisationHandler(MinimisationHandler):
 
                 file_name = os.path.join(write_dir, f"chains_{scale_shortener(scale)}.pkl")
 
+                self.corner_plot(res_dict['chain'], scale_shortener(scale))
+                self.walker_plot(res_dict['chain'], scale_shortener(scale))
+
                 logger.debug("Saving to {0}".format(file_name))
 
                 with open(file_name, "wb") as f:
                     Pickle.dump(res_dict['chain'], f)
+
+                logger.info(f"Saving to {file_name}")
 
         self.dump_results(results, scale, seed)
         return res_dict
@@ -1588,9 +1676,6 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
         lowers = np.array(self.bounds)[:, 0]
         uppers = np.array(self.bounds)[:, 1]
 
-        # mu = [1.485, 2.5779]
-        # std = [1.89, 0.7517]
-
         mu = self.mh_dict['mu']
         std = self.mh_dict['std']
 
@@ -1658,7 +1743,7 @@ class FitWeightMCMCMinimisationHandler(FitWeightMinimisationHandler):
                 tau = sampler.get_autocorr_time(discard=int(0.5 * niter), tol=0)
                 burnin = int(2 * np.max(tau))
                 samples = sampler.get_chain(discard=burnin)
-                lnlike = sampler.get_log_prob(discard=burnin)
+                # lnlike = sampler.get_log_prob(discard=burnin)
                 return samples
 
             except ValueError:
